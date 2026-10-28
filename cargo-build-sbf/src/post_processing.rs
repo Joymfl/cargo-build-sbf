@@ -219,7 +219,7 @@ pub fn post_process(
             patch_abi_v2_header(&program_unstripped_so);
         }
 
-        if config.arch == "v3" || config.arch == "v4" {
+        if config.arch == "v3" {
             verify_program(&program_unstripped_so, config);
         }
 
