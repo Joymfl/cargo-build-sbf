@@ -8,9 +8,9 @@ use {
     log::{debug, error, info, warn},
     regex::Regex,
     solana_sbpf::{
-        declare_builtin_function,
+        declare_builtin_function, ebpf,
         program::{BuiltinProgram, SBPFVersion},
-        verifier::{LocalVerifier, Verifier},
+        verifier::{LocalVerifier, Verifier, VerifierError::InvalidSyscall},
         vm::ContextObject,
     },
     std::{
@@ -360,7 +360,14 @@ fn verify_program(program_path: &PathBuf, config: &Config) {
     if let Err(verifier_error) =
         LocalVerifier::verify(&program_data, sbpf_version, loader.get_function_registry())
     {
-        error!("{verifier_error}");
+        match verifier_error {
+            InvalidSyscall(imm) if imm == ebpf::hash_symbol_name(b"sol_alloc_free_") => {
+                error!(
+                    "{verifier_error}, Attempted to allocate to heap, but no allocator found. Define your own with: https://doc.rust-lang.org/beta/std/alloc/trait.GlobalAlloc.html"
+                )
+            }
+            _ => error!("{verifier_error}"),
+        }
         exit(1);
     }
 }
