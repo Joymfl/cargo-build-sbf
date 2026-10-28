@@ -271,6 +271,25 @@ fn test_sbpfv3() {
 
 #[test]
 #[serial]
+fn test_sol_alloc_free_rejected_on_sbpfv3() {
+    let cwd = env::current_dir().expect("Unable to get current working directory");
+    let program_so = cwd
+        .join("tests")
+        .join("crates")
+        .join("alloc-free")
+        .join("target")
+        .join("deploy")
+        .join("alloc_free.so");
+
+    // SBPFv3 and later must reject it without writing the program.
+    for arch in ["v3", "v4"] {
+        run_cargo_build("alloc-free", &["--arch", arch], true);
+        assert!(!program_so.exists());
+    }
+}
+
+#[test]
+#[serial]
 fn test_regenerate_files() {
     let assert_v1 = build_noop_and_readelf("v3", false);
     assert_v1
