@@ -1,5 +1,5 @@
 //! Tests for the checks `cargo-build-sbf` runs on the built program before
-//! writing the final `.so`.
+//! deploying it.
 
 use {
     assert_cmd::cargo::cargo_bin_cmd,
@@ -12,7 +12,7 @@ extern crate serial_test;
 
 #[test]
 #[serial]
-fn test_sol_alloc_free_rejected_on_sbpfv3() {
+fn test_sol_alloc_free_warns_on_sbpfv3() {
     let crate_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("crates")
@@ -27,14 +27,17 @@ fn test_sol_alloc_free_rejected_on_sbpfv3() {
         .arg(crate_dir.join("Cargo.toml"))
         .args(["--arch", "v3"])
         .assert()
-        .failure()
+        .success()
         // 2213547663 is the murmur3 hash of `sol_alloc_free_`.
-        .stderr(predicate::str::contains(
-            "Invalid syscall code 2213547663, Attempted to allocate to heap, but no allocator \
-             found. Define your own with: \
-             https://doc.rust-lang.org/beta/std/alloc/trait.GlobalAlloc.html",
-        ));
-    assert!(!program_so.exists());
+        .stderr(
+            predicate::str::is_match(concat!(
+                r"WARN\s+cargo_build_sbf::post_processing\] Invalid syscall code 2213547663, ",
+                r"Attempted to allocate to heap, but no allocator found\. Define your own with: ",
+                r"https://doc\.rust-lang\.org/beta/std/alloc/trait\.GlobalAlloc\.html",
+            ))
+            .unwrap(),
+        );
+    assert!(program_so.exists());
 
     fs::remove_dir_all(target).expect("Failed to remove target dir");
 }

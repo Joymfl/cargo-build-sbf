@@ -1,7 +1,7 @@
 use {
     crate::{
         config::Config,
-        syscalls::SYSCALLS,
+        syscalls::{DENY_SYSCALLS, SYSCALLS},
         toolchain::rust_target_triple,
         utils::{copy_file, create_directory, generate_keypair, spawn},
     },
@@ -219,10 +219,6 @@ pub fn post_process(
             patch_abi_v2_header(&program_unstripped_so);
         }
 
-        if config.arch == "v3" {
-            verify_program(&program_unstripped_so, config);
-        }
-
         let program_so = if config.debug {
             generate_debug_objects(
                 config,
@@ -300,6 +296,10 @@ pub fn post_process(
             // SBPFv3 shall not have any undefined syscall.
             check_undefined_symbols(config, platform_tools_dir, &program_so);
         }
+
+        if config.arch == "v3" {
+            verify_program(&program_unstripped_so, config);
+        }
         if !config.debug {
             info!("To deploy this program:");
             info!("  $ solana program deploy {}", program_so.display());
@@ -350,7 +350,7 @@ fn verify_program(program_path: &PathBuf, config: &Config) {
         .expect("failed to read program file");
     let mut loader = BuiltinProgram::<DummyContextObject>::new_mock();
     for &call in SYSCALLS.iter() {
-        if call != "sol_alloc_free_" {
+        if !DENY_SYSCALLS.contains(&call) {
             loader
                 .register_definition::<SyscallStub>(call)
                 .expect("Failed to register syscall");
@@ -362,13 +362,12 @@ fn verify_program(program_path: &PathBuf, config: &Config) {
     {
         match verifier_error {
             InvalidSyscall(imm) if imm == ebpf::hash_symbol_name(b"sol_alloc_free_") => {
-                error!(
+                warn!(
                     "{verifier_error}, Attempted to allocate to heap, but no allocator found. Define your own with: https://doc.rust-lang.org/beta/std/alloc/trait.GlobalAlloc.html"
                 )
             }
-            _ => error!("{verifier_error}"),
+            _ => warn!("{verifier_error}"),
         }
-        exit(1);
     }
 }
 
