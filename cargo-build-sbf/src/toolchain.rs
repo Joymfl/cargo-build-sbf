@@ -393,7 +393,7 @@ pub(crate) fn install_if_missing(
         let _ = fs::remove_dir_all(&staging_path);
     })?;
 
-    // Since target_path may not exist during rename(2) there is a chance of old_path and new_path
+    // LINUXS and MACOS: Since target_path may not exist during rename(2) there is a chance of old_path and new_path
     // existing at the same time. It shouldn't cause any broken toolchains though, since target_path
     // will always be a valid toolchain.
     fs::rename(&staging_path, target_path)
