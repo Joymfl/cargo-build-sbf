@@ -311,10 +311,10 @@ pub fn post_process(
     }
 }
 
+/// Only supported for v3 for now
 fn verify_program(program_path: &PathBuf, config: &Config) {
     let sbpf_version = match config.arch {
         "v3" => SBPFVersion::V3,
-        "v4" => SBPFVersion::V4,
         _ => unreachable!("Impossible based on clap argument validation and conditional"),
     };
     struct DummyContextObject {}
